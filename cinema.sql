@@ -66,8 +66,7 @@ movie_Title VARCHAR(50),
 movie_Runtime INT,
 movie_Esrb_rating VARCHAR(15),
 movie_Room_ID INT,
-PRIMARY KEY (movie_ID),
-FOREIGN KEY (movie_Room_ID) REFERENCES Room(room_ID)
+PRIMARY KEY (movie_ID)
 );
 
 #To ensure that the same room does not have a double bnooking 
