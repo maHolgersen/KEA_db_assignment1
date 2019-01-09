@@ -34,24 +34,38 @@ FOR EACH ROW
 DELIMITER ;
 
 #Tigger to check if the new show overlaps in time with any other show on that day //THIS TRIGGER DOES NOT WORK 100%//
+#This trigger will only check on the 1st returned show
 DROP TRIGGER IF EXISTS before_shows_insert;
 DELIMITER //
 CREATE TRIGGER before_shows_insert
 BEFORE INSERT ON Shows
 FOR EACH ROW
 	BEGIN
-    DECLARE st, et TIME DEFAULT '00:00:00';
-    SET st = (SELECT shows_Start_Time FROM cinema.Shows WHERE Shows.Shows_Room_ID = NEW.shows_Room_ID AND Shows.shows_Date = NEW.shows_Date LIMIT 1);
-    SET et = (SELECT shows_End_Time FROM cinema.Shows WHERE Shows.shows_Room_ID = NEW.shows_Room_ID AND Shows.shows_Date = NEW.shows_Date LIMIT 1);
-		IF (NEW.shows_Start_Time BETWEEN st AND et) 
-			THEN
-				SET NEW.shows_ID = NULL;
-		END IF;
-		IF (NEW.shows_End_Time BETWEEN st AND et)
-			THEN
-				SET NEW.shows_ID = NULL;
-		END IF;
-    END //
+		DECLARE done INT DEFAULT FALSE;
+		DECLARE st, et TIME DEFAULT '00:00:00';
+		DECLARE cur CURSOR FOR SELECT shows_Start_Time, shows_End_Time FROM Shows WHERE shows_Date = NEW.shows_Date;
+		DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+		OPEN cur;
+			read_loop: LOOP
+				FETCH  cur INTO st, et;
+			
+				IF done THEN
+					LEAVE read_loop;
+				END IF;
+        
+				IF (NEW.shows_Start_Time BETWEEN st AND et) 
+					THEN
+						SIGNAL SQLSTATE '45000'
+						SET MESSAGE_TEXT = 'new show conflicts with another show';
+				END IF;
+				IF (NEW.shows_End_Time BETWEEN st AND et)
+					THEN
+						SIGNAL SQLSTATE '45000'
+						SET MESSAGE_TEXT = 'new show conflicts with another show';
+				END IF;
+            END LOOP;
+		CLOSE cur;
+	END //
 DELIMITER ;
 
 #Procedure to populate seats, called with 3 ints, seatCount for how meny seats pr row, seatRow for how meny rows and seatRoom for wich room.
